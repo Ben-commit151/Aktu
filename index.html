@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03050c">
+<title>AKTU — Assistant d'actualités</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fond: #03050c;
+    --carte: #0b1020;
+    --trait: #18203a;
+    --texte: #f2f5fb;
+    --doux: #7d88a3;
+    --bleu: #3b82f6;
+    --ciel: #4cc3ff;
+    --ambre: #f5b84b;
+    --rouge: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--fond); color: var(--texte);
+               font-family: "Manrope", system-ui, sans-serif; overflow: hidden; }
+  button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+  input { font: inherit; }
+
+  /* ---------- écrans ---------- */
+  .ecran { position: fixed; inset: 0; margin: 0 auto; max-width: 460px; display: flex; flex-direction: column;
+           padding: max(14px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+           opacity: 0; pointer-events: none; transition: opacity .45s ease, transform .45s ease; transform: translateY(10px); }
+  .ecran.actif { opacity: 1; pointer-events: auto; transform: none; }
+  canvas { display: block; }
+
+  .barre { height: 44px; display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 2; }
+  .barre h2 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .rond { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+          background: #0d1325cc; border: 1px solid var(--trait); }
+  .rond svg { width: 18px; height: 18px; stroke: #c6cee0; }
+  .etat { width: 7px; height: 7px; border-radius: 50%; background: var(--doux); }
+  .etat.ok { background: #34d399; box-shadow: 0 0 8px #34d399; }
+  .etat.hs { background: var(--rouge); }
+  .etat.connexion { background: var(--ambre); animation: clignote 1s infinite; }
+  @keyframes clignote { 50% { opacity: .3 } }
+
+  /* ---------- écran 1 : accueil ---------- */
+  #accueil h1 { font-size: 40px; line-height: 1.08; font-weight: 700; letter-spacing: -.025em; margin-top: 46px; }
+  #accueil .sous { color: #aab4c9; font-size: 15px; line-height: 1.5; margin-top: 12px; max-width: 250px; }
+  #c-anneau { width: 100%; flex: 1; min-height: 0; }
+  .commencer { height: 64px; border-radius: 999px; background: #10172b; border: 1px solid var(--trait);
+               display: flex; align-items: center; padding: 6px; gap: 16px; }
+  .commencer .fleche { width: 52px; height: 52px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
+  .commencer .fleche svg { width: 20px; height: 20px; stroke: #0b1020; }
+  .commencer .libelle { flex: 1; text-align: left; color: var(--ciel); font-weight: 600; font-size: 15px; }
+  .commencer .chev { width: 18px; height: 18px; stroke: #c6cee0; margin-right: 14px; }
+
+  /* ---------- écran 2 : écoute ---------- */
+  #principal { padding-left: 0; padding-right: 0; }
+  #principal .barre, #principal .bas { padding: 0 20px; }
+  .scene { position: relative; flex: 1; min-height: 0; }
+  #c-ondes { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .message { position: absolute; left: 28px; right: 28px; top: 50%; transform: translateY(-50%); }
+  .message h1 { font-size: 34px; line-height: 1.16; font-weight: 700; letter-spacing: -.02em; white-space: pre-line; }
+  .chrono { color: var(--ciel); font-size: 13px; font-weight: 600; margin-top: 14px; letter-spacing: .04em; min-height: 18px; }
+  .alerte { color: #fca5a5; font-size: 13.5px; line-height: 1.5; margin-top: 10px; min-height: 20px; }
+  .bas { height: 96px; display: flex; align-items: center; justify-content: space-between; }
+  .micro { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; position: relative;
+           background: radial-gradient(circle at 50% 40%, #2f8cff, #1546c9); box-shadow: 0 0 34px #2f7dff88, inset 0 0 0 1px #8ec5ff66; }
+  .micro svg { width: 28px; height: 28px; stroke: #fff; }
+  .micro::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 1px solid #4cc3ff55; }
+  body.ecoute .micro { background: radial-gradient(circle at 50% 40%, #ff6b8a, #c21d4b); box-shadow: 0 0 34px #ff3b6b88; }
+  body.ecoute .micro::before { border-color: #ff6b8a77; animation: onde 1.3s ease-out infinite; }
+  @keyframes onde { from { transform: scale(.92); opacity: 1 } to { transform: scale(1.4); opacity: 0 } }
+  body.reflexion .micro { opacity: .45; pointer-events: none; }
+  .petit { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+           background: #0d1325; border: 1px solid var(--trait); }
+  .petit svg { width: 20px; height: 20px; stroke: #c6cee0; }
+
+  /* ---------- écran 3 : réponse ---------- */
+  #reponse { overflow: hidden; }
+  .defile { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; scrollbar-width: none; }
+  .defile::-webkit-scrollbar { display: none; }
+  .rappel { color: #c6cee0; font-size: 15px; line-height: 1.45; margin: 18px 0 2px; }
+  #c-forme { width: 100%; height: 150px; margin: 6px 0 2px; touch-action: none; }
+  .temps { color: var(--ciel); font-size: 13px; font-weight: 600; text-align: center; letter-spacing: .04em; margin-bottom: 18px; }
+  .ligne-cat { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .cat { padding: 5px 12px; border-radius: 999px; background: #10204a; color: #93c5fd;
+         font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .confiance { color: var(--doux); font-size: 12px; }
+  .note { color: var(--ambre); font-size: 14.5px; line-height: 1.55; margin-bottom: 14px; }
+  .resume p { font-size: 18px; line-height: 1.5; font-weight: 500; margin-bottom: 14px; color: #e9edf6; }
+  .resume p b { color: var(--ciel); font-weight: 600; }
+  .sources { border-top: 1px solid var(--trait); margin-top: 6px; padding-top: 14px; }
+  .sources h3 { font-size: 11px; color: var(--doux); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px; }
+  .sources a { display: block; color: #9fb3d6; font-size: 13.5px; line-height: 1.45; text-decoration: none; padding: 7px 0; }
+  .nouvelle { height: 58px; border-radius: 999px; background: linear-gradient(135deg, #2f8cff, #1546c9);
+              display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; font-size: 15px;
+              box-shadow: 0 8px 30px #2f7dff55; flex: none; }
+  .nouvelle svg { width: 20px; height: 20px; stroke: #fff; }
+
+  /* ---------- feuilles du bas ---------- */
+  .voile { position: fixed; inset: 0; background: #000b; display: none; align-items: flex-end; justify-content: center; z-index: 20; }
+  .voile.visible { display: flex; }
+  .feuille { width: 100%; max-width: 460px; background: #0c1222; border: 1px solid var(--trait); border-bottom: none;
+             border-radius: 26px 26px 0 0; padding: 12px 20px max(24px, env(safe-area-inset-bottom));
+             animation: glisse .3s ease-out; }
+  @keyframes glisse { from { transform: translateY(40px); opacity: .4 } }
+  .poignee { width: 38px; height: 4px; border-radius: 4px; background: #2a334d; margin: 0 auto 16px; }
+  .feuille h3 { font-size: 17px; margin-bottom: 6px; }
+  .feuille p { color: var(--doux); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
+  .champ { display: flex; gap: 8px; background: var(--fond); border: 1px solid var(--trait); border-radius: 16px; padding: 6px 6px 6px 14px; }
+  .champ input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--texte); font-size: 16px; }
+  .champ input::placeholder { color: #566079; }
+  .envoi { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+           background: linear-gradient(135deg, #2f8cff, #1546c9); }
+  .envoi svg { width: 18px; height: 18px; stroke: #fff; }
+  .liste-puces { display: flex; flex-direction: column; gap: 8px; }
+  .puce { text-align: left; padding: 14px 16px; border-radius: 14px; background: #0f1629; border: 1px solid var(--trait);
+          font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+  .puce small { color: var(--doux); font-size: 12px; }
+</style>
+</head>
+<body class="repos">
+
+<!-- ================= ÉCRAN 1 : ACCUEIL ================= -->
+<section class="ecran actif" id="accueil">
+  <h1>Assistant<br>d'actualités</h1>
+  <p class="sous">Les nouvelles du jour, triées par notre modèle et lues à voix haute.</p>
+  <canvas id="c-anneau"></canvas>
+  <button class="commencer" id="commencer">
+    <span class="fleche"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+    <span class="libelle">Commencer</span>
+    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+  </button>
+</section>
+
+<!-- ================= ÉCRAN 2 : ÉCOUTE ================= -->
+<section class="ecran" id="principal">
+  <div class="barre">
+    <button class="rond" data-aller="accueil" aria-label="Retour">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
+    </button>
+    <h2><span class="etat" id="etat"></span>AKTU</h2>
+    <button class="rond" data-ouvrir="reglages" aria-label="Réglages">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <div class="scene">
+    <canvas id="c-ondes"></canvas>
+    <div class="message">
+      <h1 id="message">Bonjour,
+quelles nouvelles
+voulez-vous ?</h1>
+      <p class="chrono" id="chrono"></p>
+      <p class="alerte" id="alerte"></p>
+    </div>
+  </div>
+
+  <div class="bas">
+    <button class="petit" data-ouvrir="texte" aria-label="Écrire">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/><line x1="7" y1="14" x2="17" y2="14"/></svg>
+    </button>
+    <button class="micro" id="micro" aria-label="Parler">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+    </button>
+    <button class="petit" data-ouvrir="suggestions" aria-label="Suggestions">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ================= ÉCRAN 3 : RÉPONSE ================= -->
+<section class="ecran" id="reponse">
+  <div class="barre">
+    <button class="rond" data-aller="principal" aria-label="Retour">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
+    </button>
+    <h2>Réponse</h2>
+    <button class="rond" id="lecture" aria-label="Lecture">
+      <svg id="icone-lecture" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7 4 19 12 7 20 7 4"/></svg>
+    </button>
+  </div>
+
+  <div class="defile">
+    <p class="rappel" id="rappel"></p>
+    <canvas id="c-forme"></canvas>
+    <p class="temps" id="temps">00:00</p>
+    <div class="ligne-cat"><span class="cat" id="cat"></span><span class="confiance" id="confiance"></span></div>
+    <p class="note" id="note"></p>
+    <div class="resume" id="resume"></div>
+    <div class="sources" id="blocSources"><h3>Sources · BBC</h3><div id="sources"></div></div>
+  </div>
+
+  <button class="nouvelle" data-aller="principal">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+    Nouvelle question
+  </button>
+</section>
+
+<!-- ================= FEUILLES ================= -->
+<div class="voile" id="v-texte">
+  <form class="feuille" id="formulaire">
+    <div class="poignee"></div>
+    <h3>Écrire votre demande</h3>
+    <p>Par exemple : « les actus sport » ou « comment va la bourse ? »</p>
+    <div class="champ">
+      <input id="champ" type="text" placeholder="Votre demande…" autocomplete="off" enterkeyhint="send">
+      <button class="envoi" type="submit" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+    </div>
+  </form>
+</div>
+
+<div class="voile" id="v-suggestions">
+  <div class="feuille">
+    <div class="poignee"></div>
+    <h3>Idées de questions</h3>
+    <p>Une par thème : notre modèle classe l'actualité en quatre catégories.</p>
+    <div class="liste-puces">
+      <button class="puce" data-q="Donne-moi les actualités sport">Les actus sport <small>Sport</small></button>
+      <button class="puce" data-q="Comment se porte la bourse ?">Comment va la bourse ? <small>Économie</small></button>
+      <button class="puce" data-q="Quoi de neuf en technologie ?">Quoi de neuf en technologie ? <small>Technologie</small></button>
+      <button class="puce" data-q="Que se passe-t-il dans le monde ?">Que se passe-t-il dans le monde ? <small>Monde</small></button>
+    </div>
+  </div>
+</div>
+
+<div class="voile" id="v-reglages">
+  <div class="feuille">
+    <div class="poignee"></div>
+    <h3>Connexion au serveur</h3>
+    <p>Collez le lien affiché par Colab (il se termine par <b>.gradio.live</b>). Il change à chaque session.</p>
+    <div class="champ">
+      <input id="champLien" type="url" placeholder="https://xxxxxxxx.gradio.live" autocomplete="off">
+      <button class="envoi" id="enregistrerLien" aria-label="Se connecter"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<audio id="lecteur" preload="none"></audio>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const URL_CLIENT = "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+const CLE = "aktu_api";
+let Gradio = null, client = null, lienApi = null;
+
+/* =========================================================
+   NAVIGATION ET ÉTATS
+   ========================================================= */
+let ecranActif = "accueil";
+function aller(nom) {
+  document.querySelectorAll(".ecran").forEach(e => e.classList.toggle("actif", e.id === nom));
+  ecranActif = nom;
+  if (nom === "principal" && document.body.className !== "ecoute") mode("repos");
+}
+document.querySelectorAll("[data-aller]").forEach(b => b.onclick = () => aller(b.dataset.aller));
+$("commencer").onclick = () => aller("principal");
+
+const MESSAGES = {
+  repos: "Bonjour,\nquelles nouvelles\nvoulez-vous ?",
+  ecoute: "Je vous\nécoute…",
+  reflexion: "Je cherche\ndans l'actualité\ndu jour…",
+};
+function mode(m) {
+  document.body.className = m;
+  if (MESSAGES[m]) $("message").textContent = MESSAGES[m];
+  if (m !== "ecoute") $("chrono").textContent = m === "repos" ? "" : $("chrono").textContent;
+  if (m === "reflexion") $("chrono").textContent = "TRAITEMENT EN COURS";
+}
+function alerte(t) { $("alerte").textContent = t || ""; }
+
+function ouvrir(nom) {
+  if (nom === "reglages") $("champLien").value = lienApi || "";
+  $("v-" + nom).classList.add("visible");
+  if (nom === "texte") setTimeout(() => $("champ").focus(), 120);
+}
+function fermer() { document.querySelectorAll(".voile").forEach(v => v.classList.remove("visible")); }
+document.querySelectorAll("[data-ouvrir]").forEach(b => b.onclick = () => ouvrir(b.dataset.ouvrir));
+document.querySelectorAll(".voile").forEach(v => v.onclick = e => { if (e.target === v) fermer(); });
+
+/* =========================================================
+   CONNEXION AU SERVEUR COLAB
+   ========================================================= */
+function lire() { try { return localStorage.getItem(CLE); } catch { return null; } }
+function ecrire(v) { try { localStorage.setItem(CLE, v); } catch {} }
+function nettoyer(u) { return (u || "").trim().replace(/\/+$/, ""); }
+function etat(e) { $("etat").className = "etat " + e; }
+
+const params = new URLSearchParams(location.search);
+if (params.get("api")) {
+  lienApi = nettoyer(params.get("api")); ecrire(lienApi);
+  history.replaceState(null, "", location.pathname);
+} else {
+  lienApi = nettoyer(lire());
+}
+
+async function connecter() {
+  if (!lienApi) { etat(""); return false; }
+  etat("connexion");
+  try {
+    if (!Gradio) Gradio = await import(URL_CLIENT);
+    client = await Gradio.Client.connect(lienApi);
+    etat("ok"); alerte("");
+    return true;
+  } catch {
+    client = null; etat("hs");
+    alerte("Serveur injoignable. Vérifiez que Colab tourne et que le lien est à jour (roue dentée).");
+    return false;
+  }
+}
+$("enregistrerLien").onclick = async () => {
+  lienApi = nettoyer($("champLien").value); ecrire(lienApi); fermer(); await connecter();
+};
+
+/* =========================================================
+   ENVOYER UNE QUESTION
+   ========================================================= */
+async function demander(fichier, texte) {
+  alerte("");
+  aller("principal");
+  if (!client && !(await connecter())) { if (!lienApi) ouvrir("reglages"); mode("repos"); return; }
+  mode("reflexion");
+  try {
+    const res = await client.predict("/demander", [fichier ? Gradio.handle_file(fichier) : null, texte || ""]);
+    const [d, voix] = res.data;
+    if (!d || d.erreur) { alerte(d ? d.erreur : "Réponse vide du serveur."); mode("repos"); return; }
+    afficher(d);
+    aller("reponse");
+    mode("parole");
+    if (voix && voix.url) {
+      $("lecteur").src = voix.url;
+      $("lecteur").play().catch(() => majIcone());
+    }
+  } catch {
+    client = null; etat("hs");
+    alerte("Le serveur ne répond pas. Vérifiez Colab, puis le lien dans les réglages.");
+    mode("repos");
+  }
+}
+
+const NOMS = { Sports: "Sport", Business: "Économie", "Sci/Tech": "Technologie", World: "Monde" };
+function afficher(d) {
+  $("rappel").textContent = d.question ? `« ${d.question} »` : "";
+  $("cat").textContent = NOMS[d.categorie] || d.categorie;
+  $("confiance").textContent = d.confiance ? `confiance ${Math.round(d.confiance * 100)} %` : "";
+  $("note").textContent = d.note || "";
+  $("note").style.display = d.note ? "block" : "none";
+
+  const resume = $("resume"); resume.replaceChildren();
+  (d.resume || "").split("\n").map(s => s.replace(/^\s*[-•*]\s*/, "").trim()).filter(Boolean).forEach(ligne => {
+    // le sujet de chaque phrase (avant la première virgule ou le premier verbe) en bleu, comme sur la maquette
+    const p = document.createElement("p");
+    const coupe = ligne.search(/[,:]| a | ont | est | sont /);
+    if (coupe > 3 && coupe < 60) {
+      const b = document.createElement("b"); b.textContent = ligne.slice(0, coupe);
+      p.append(b, document.createTextNode(ligne.slice(coupe)));
+    } else {
+      p.textContent = ligne;
+    }
+    resume.appendChild(p);
+  });
+
+  const src = $("sources"); src.replaceChildren();
+  (d.sources || []).forEach(s => {
+    const a = document.createElement("a");
+    a.textContent = s.titre; a.href = s.lien; a.target = "_blank"; a.rel = "noopener";
+    src.appendChild(a);
+  });
+  $("blocSources").style.display = (d.sources || []).length ? "block" : "none";
+  graine = (d.resume || "x").length;
+  $("reponse").querySelector(".defile").scrollTop = 0;
+}
+
+/* lecture audio */
+const lecteur = $("lecteur");
+function majIcone() {
+  $("icone-lecture").innerHTML = lecteur.paused
+    ? '<polygon points="7 4 19 12 7 20 7 4"/>'
+    : '<line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/>';
+}
+lecteur.onplay = majIcone;
+lecteur.onpause = majIcone;
+lecteur.onended = () => { majIcone(); mode("repos"); };
+$("lecture").onclick = () => { if (!lecteur.src) return; lecteur.paused ? lecteur.play() : lecteur.pause(); };
+
+$("formulaire").onsubmit = e => {
+  e.preventDefault();
+  const t = $("champ").value.trim(); if (!t) return;
+  $("champ").value = ""; $("champ").blur(); fermer(); demander(null, t);
+};
+document.querySelectorAll(".puce").forEach(b => b.onclick = () => { fermer(); demander(null, b.dataset.q); });
+
+/* =========================================================
+   MICRO (avec niveau sonore pour animer les ondes)
+   ========================================================= */
+let enregistreur = null, morceaux = [], chrono = null, debut = 0;
+let analyseur = null, tampon = null, ctxAudio = null;
+let niveauMicro = 0;
+
+$("micro").onclick = async () => {
+  if (enregistreur && enregistreur.state === "recording") { enregistreur.stop(); return; }
+  alerte("");
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alerte("Ce navigateur n'enregistre pas le micro : utilisez le clavier."); return; }
+  let flux;
+  try { flux = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { alerte("Micro refusé. Autorisez-le dans les réglages du navigateur (cadenas à côté de l'adresse)."); return; }
+
+  try {
+    ctxAudio = ctxAudio || new (window.AudioContext || window.webkitAudioContext)();
+    analyseur = ctxAudio.createAnalyser(); analyseur.fftSize = 512;
+    ctxAudio.createMediaStreamSource(flux).connect(analyseur);
+    tampon = new Uint8Array(analyseur.fftSize);
+  } catch { analyseur = null; }
+
+  const formats = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  const type = formats.find(f => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(f)) || "";
+  enregistreur = new MediaRecorder(flux, type ? { mimeType: type } : undefined);
+  morceaux = [];
+  enregistreur.ondataavailable = e => { if (e.data.size) morceaux.push(e.data); };
+  enregistreur.onstop = () => {
+    flux.getTracks().forEach(t => t.stop());
+    clearInterval(chrono); analyseur = null; niveauMicro = 0;
+    const mime = enregistreur.mimeType || type || "audio/webm";
+    const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm";
+    const fichier = new File([new Blob(morceaux, { type: mime })], `question.${ext}`, { type: mime });
+    if (fichier.size < 1500) { alerte("Enregistrement trop court, réessayez."); mode("repos"); return; }
+    demander(fichier, "");
+  };
+  enregistreur.start();
+  mode("ecoute");
+  debut = Date.now();
+  const tic = () => {
+    const s = Math.floor((Date.now() - debut) / 1000);
+    $("chrono").textContent = `00:${String(s).padStart(2, "0")} · APPUYEZ POUR TERMINER`;
+    if (s >= 20) enregistreur.stop();
+  };
+  tic(); chrono = setInterval(tic, 250);
+};
+
+/* =========================================================
+   DESSIN : anneau, ondes et forme d'onde (canvas, nets en haute densité)
+   ========================================================= */
+function preparer(canvas) {
+  const r = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * r) || canvas.height !== Math.round(h * r)) {
+    canvas.width = Math.round(w * r); canvas.height = Math.round(h * r);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+  return [ctx, w, h];
+}
+function couleur(k, a) { return `hsla(${205 + k * 22}, 100%, ${58 + k * 14}%, ${a})`; }
+
+/* écran 1 : anneau ondulant */
+function dessinerAnneau(t) {
+  const [ctx, w, h] = preparer($("c-anneau"));
+  ctx.clearRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "lighter";
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.3;
+  const N = 46;
+  for (let i = 0; i < N; i++) {
+    const k = i / N;
+    ctx.beginPath();
+    for (let j = 0; j <= 180; j++) {
+      const a = (j / 180) * Math.PI * 2;
+      const r = R * (1
+        + 0.10 * Math.sin(3 * a + t * 0.6 + k * 2.4)
+        + 0.06 * Math.sin(5 * a - t * 0.45 + k * 5.1)
+        + 0.04 * Math.sin(2 * a + t * 0.3)
+        + 0.16 * (k - 0.5) * Math.sin(2 * a + t * 0.5 + 1.3));
+      const x = cx + r * Math.cos(a + k * 0.5), y = cy + r * 0.92 * Math.sin(a + k * 0.5);
+      j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.strokeStyle = couleur(k, 0.28);
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+  }
+  // halo central doux
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.5);
+  g.addColorStop(0, "rgba(37,99,235,0.10)"); g.addColorStop(1, "rgba(37,99,235,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+
+/* écran 2 : deux rubans de lignes fines autour du texte */
+let energie = 0.5, cibleEnergie = 0.5, vitesse = 1, cibleVitesse = 1;
+function dessinerOndes(t) {
+  const [ctx, w, h] = preparer($("c-ondes"));
+  ctx.clearRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "lighter";
+  const N = 34;
+  const rubans = [
+    { y: 0.20, sens: 1, ph: 0 },
+    { y: 0.82, sens: -1, ph: 2.1 },
+  ];
+  for (const rb of rubans) {
+    for (let i = 0; i < N; i++) {
+      const k = i / N;
+      ctx.beginPath();
+      for (let x = -20; x <= w + 20; x += 5) {
+        const u = x / w;
+        const enveloppe = Math.sin(Math.PI * Math.min(Math.max(u * 1.05, 0), 1)) * 0.6 + 0.4;
+        const y = h * rb.y
+          + rb.sens * Math.sin(u * 4.2 + t * 0.9 + k * 1.6 + rb.ph) * h * 0.075 * energie * enveloppe
+          + Math.sin(u * 9.0 - t * 1.3 + k * 3.4 + rb.ph) * h * 0.022 * energie
+          + (k - 0.5) * h * 0.07 * (0.6 + 0.4 * Math.sin(u * 3 + t * 0.5 + rb.ph));
+        x === -20 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = couleur(k, 0.22 + 0.10 * energie);
+      ctx.lineWidth = 0.85;
+      ctx.stroke();
+    }
+  }
+}
+
+/* écran 3 : forme d'onde avec tête de lecture */
+let graine = 7;
+function dessinerForme(t) {
+  const [ctx, w, h] = preparer($("c-forme"));
+  ctx.clearRect(0, 0, w, h);
+  const prog = lecteur.duration ? lecteur.currentTime / lecteur.duration : 0;
+  const px = w * prog;
+  const actif = !lecteur.paused;
+  const N = 16;
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < N; i++) {
+    const k = i / N;
+    for (const zone of [0, 1]) {               // 0 : déjà lu (bleu), 1 : à venir (gris clair)
+      ctx.save();
+      ctx.beginPath();
+      zone === 0 ? ctx.rect(0, 0, px, h) : ctx.rect(px, 0, w - px, h);
+      ctx.clip();
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 3) {
+        const u = x / w;
+        const env = Math.pow(Math.sin(Math.PI * u), 0.7);
+        const anim = actif ? t * 2.2 : t * 0.4;
+        const y = h / 2
+          + Math.sin(u * (10 + graine % 5) + anim + k * 2.6) * h * 0.26 * env
+          + Math.sin(u * 27 - anim * 1.4 + k * 5) * h * 0.08 * env;
+        x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.strokeStyle = zone === 0 ? couleur(k, 0.30) : `rgba(225,232,245,${0.10 + 0.05 * k})`;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "#4cc3ff"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(px, 8); ctx.lineTo(px, h - 8); ctx.stroke();
+  ctx.fillStyle = "#4cc3ff";
+  for (const yy of [8, h - 8]) { ctx.beginPath(); ctx.arc(px, yy, 4, 0, Math.PI * 2); ctx.fill(); }
+  const s = Math.floor(lecteur.currentTime || 0);
+  $("temps").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+/* toucher la forme d'onde pour se déplacer dans l'audio */
+$("c-forme").addEventListener("pointerdown", e => {
+  if (!lecteur.duration) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  lecteur.currentTime = lecteur.duration * Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+});
+
+/* boucle d'animation */
+let tPrec = performance.now(), horloge = 0;
+function boucle(maintenant) {
+  const dt = Math.min((maintenant - tPrec) / 1000, 0.05); tPrec = maintenant;
+
+  const m = document.body.className;
+  if (m === "ecoute" && analyseur) {
+    analyseur.getByteTimeDomainData(tampon);
+    let somme = 0; for (const v of tampon) { const d = (v - 128) / 128; somme += d * d; }
+    niveauMicro = Math.sqrt(somme / tampon.length);
+  }
+  cibleEnergie = m === "ecoute" ? 0.7 + Math.min(niveauMicro * 9, 1.4)
+               : m === "reflexion" ? 0.85 : m === "parole" ? 0.9 : 0.55;
+  cibleVitesse = m === "reflexion" ? 2.6 : m === "ecoute" ? 1.6 : 1;
+  energie += (cibleEnergie - energie) * Math.min(dt * 6, 1);
+  vitesse += (cibleVitesse - vitesse) * Math.min(dt * 3, 1);
+  horloge += dt * vitesse;
+
+  if (ecranActif === "accueil") dessinerAnneau(horloge);
+  if (ecranActif === "principal") dessinerOndes(horloge);
+  if (ecranActif === "reponse") dessinerForme(horloge);
+  requestAnimationFrame(boucle);
+}
+requestAnimationFrame(boucle);
+
+mode("repos");
+connecter();
+</script>
+</body>
+</html>
